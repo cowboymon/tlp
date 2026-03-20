@@ -146,8 +146,8 @@ async function uploadImageToSprout(imageBuffer, filename) {
   }
 
   const json = await res.json();
-  // Expected response shape: { data: { id: <media_id> } }
-  const mediaId = json?.data?.id;
+  // Response shape: { data: [{ media_id: "<uuid>", expiration_time: "..." }] }
+  const mediaId = json?.data?.[0]?.media_id;
   if (!mediaId) {
     throw new Error(`Sprout media upload returned no media ID: ${JSON.stringify(json)}`);
   }
@@ -172,7 +172,7 @@ async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds
 
   // Only include media_attachments if an image was uploaded
   if (mediaId) {
-    payload.media_attachments = [{ id: mediaId }];
+    payload.media_attachments = [{ media_id: mediaId }];
   }
 
   // Only include tag_ids if a matching tag was found
