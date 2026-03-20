@@ -21,7 +21,7 @@ const NOTION_FIELDS = {
 const NOTION_STATUS = {
   trigger: 'Push to Sprout',
   success: 'Sent to Sprout',
-  error: 'Error',
+  error: 'Failed to Push',
 };
 
 // TAG_MAP: maps Job Number values (from Notion) to Sprout tag IDs.
