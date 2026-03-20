@@ -172,7 +172,7 @@ async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds
 
   // Only include media_attachments if an image was uploaded
   if (mediaId) {
-    payload.media_attachments = [{ media_id: mediaId }];
+    payload.media = [{ media_id: mediaId, media_type: 'PHOTO' }];
   }
 
   // Only include tag_ids if a matching tag was found
