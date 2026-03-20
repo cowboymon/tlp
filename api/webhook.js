@@ -24,13 +24,24 @@ const NOTION_STATUS = {
 };
 
 // PROFILE_MAP: maps network names to Sprout customer_profile_ids.
-// To find your real IDs, call:
-//   GET https://api.sproutsocial.com/v1/{SPROUT_CUSTOMER_ID}/metadata/customer
-// and look for `customer_profiles[].id` for each network.
+// To add/update profiles, call:
+//   GET https://api.sproutsocial.com/v1/2796348/metadata/customer
 const PROFILE_MAP = {
-  Instagram: 11111, // replace with real customer_profile_id
-  Facebook: 22222,  // replace with real customer_profile_id
-  LinkedIn: 33333,  // replace with real customer_profile_id
+  // Instagram
+  'Instagram':           7480412, // @thelocalproject (fb_instagram_account)
+
+  // Facebook
+  'Facebook':            7480411, // The Local Project (thelocalprojectpublication)
+  'Facebook Production': 7443935, // The Local Production
+
+  // LinkedIn
+  'LinkedIn':            7471923, // The Local Project (the-local-project-publication)
+  'LinkedIn Production': 7471922, // The Local Production (thelocalproduction)
+
+  // Other platforms
+  'Pinterest':           7471920, // @thelocalproject
+  'TikTok':              7471921, // @thelocalproject
+  'YouTube':             7471924, // The Local Project
 };
 
 // ---------------------------------------------------------------------------
