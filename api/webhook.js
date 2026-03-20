@@ -164,7 +164,7 @@ function getSproutMediaType(filename) {
   return 'PHOTO';
 }
 
-async function createSproutPost(text, scheduledTime, mediaId, mediaFilename, profileIds, tagIds) {
+async function createSproutPost(text, scheduledTime, uploadedMedia, profileIds, tagIds) {
   const payload = {
     is_draft: true,
     text,
@@ -177,9 +177,12 @@ async function createSproutPost(text, scheduledTime, mediaId, mediaFilename, pro
     payload.scheduled_send_time = scheduledTime;
   }
 
-  // Only include media_attachments if an image was uploaded
-  if (mediaId) {
-    payload.media = [{ media_id: mediaId, media_type: getSproutMediaType(mediaFilename) }];
+  // Only include media if assets were uploaded
+  if (uploadedMedia && uploadedMedia.length > 0) {
+    payload.media = uploadedMedia.map(({ mediaId, filename }) => ({
+      media_id: mediaId,
+      media_type: getSproutMediaType(filename),
+    }));
   }
 
   // Only include tag_ids if a matching tag was found
@@ -279,12 +282,13 @@ module.exports = async function handler(req, res) {
       console.warn('STEP 5: "Publish Date" is empty — creating unscheduled draft');
     }
 
-    // "Social Asset" — files property; grab the first file's URL
+    // "Social Asset" — files property; collect all files
     const files = props?.[NOTION_FIELDS.socialAsset]?.files ?? [];
     // Notion files can be type "file" (signed URL) or "external"
-    const firstFile = files[0] ?? null;
-    const assetUrl = firstFile?.file?.url ?? firstFile?.external?.url ?? null;
-    const assetFilename = firstFile?.name ?? 'image.jpg';
+    const assetFiles = files.map((f) => ({
+      url: f?.file?.url ?? f?.external?.url ?? null,
+      filename: f?.name ?? 'image.jpg',
+    })).filter((f) => f.url);
 
     // "Network" — optional select or multi_select; default to all if absent
     let profileIds = Object.values(PROFILE_MAP);
@@ -322,23 +326,26 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    console.log(`STEP 5: postText="${postText.substring(0, 80)}...", scheduledTime=${scheduledTime}, assetUrl=${assetUrl ? '[present]' : '[none]'}, profileIds=${JSON.stringify(profileIds)}, jobNumber="${jobNumber}", tagIds=${JSON.stringify(tagIds)}`);
+    console.log(`STEP 5: postText="${postText.substring(0, 80)}...", scheduledTime=${scheduledTime}, assets=${assetFiles.length}, profileIds=${JSON.stringify(profileIds)}, jobNumber="${jobNumber}", tagIds=${JSON.stringify(tagIds)}`);
 
-    // STEP 6: Download and upload image (if present)
-    let mediaId = null;
-    if (assetUrl) {
-      console.log('STEP 6: Downloading image from Notion signed URL...');
-      const imageBuffer = await downloadImage(assetUrl);
-      console.log(`STEP 6: Image downloaded (${imageBuffer.length} bytes). Uploading to Sprout...`);
-      mediaId = await uploadImageToSprout(imageBuffer, assetFilename);
-      console.log(`STEP 6: Image uploaded to Sprout. media_id=${mediaId}`);
+    // STEP 6: Download and upload all assets (if present)
+    const uploadedMedia = [];
+    if (assetFiles.length > 0) {
+      console.log(`STEP 6: Uploading ${assetFiles.length} asset(s) to Sprout...`);
+      for (const asset of assetFiles) {
+        const imageBuffer = await downloadImage(asset.url);
+        console.log(`STEP 6: Downloaded "${asset.filename}" (${imageBuffer.length} bytes). Uploading...`);
+        const mediaId = await uploadImageToSprout(imageBuffer, asset.filename);
+        console.log(`STEP 6: Uploaded "${asset.filename}" → media_id=${mediaId}`);
+        uploadedMedia.push({ mediaId, filename: asset.filename });
+      }
     } else {
       console.log('STEP 6: No "Social Asset" — skipping image upload');
     }
 
     // STEP 7 + 8: Create draft post in Sprout Social
     console.log('STEP 7/8: Creating Sprout draft post...');
-    const sproutResult = await createSproutPost(postText, scheduledTime, mediaId, assetFilename, profileIds, tagIds);
+    const sproutResult = await createSproutPost(postText, scheduledTime, uploadedMedia, profileIds, tagIds);
     console.log(`STEP 8: Sprout post created: ${JSON.stringify(sproutResult)}`);
 
     // STEP 9: Update Notion page status to "Sent to Sprout"
