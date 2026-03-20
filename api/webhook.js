@@ -14,13 +14,22 @@ const NOTION_FIELDS = {
   postCopy: 'Post Copy',
   publishDate: 'Publish Date',
   socialAsset: 'Social Asset',
-  network: 'Network', // optional select/multi_select field
+  network: 'Network',    // optional select/multi_select field
+  jobNumber: 'Job Number', // optional text field — mapped to a Sprout tag ID
 };
 
 const NOTION_STATUS = {
   trigger: 'Push to Sprout',
   success: 'Sent to Sprout',
   error: 'Error',
+};
+
+// TAG_MAP: maps Job Number values (from Notion) to Sprout tag IDs.
+// To find your tag IDs, call:
+//   GET https://api.sproutsocial.com/v1/2796348/metadata/customer/tags
+// Each tag in the response has an "id" field — use that as the value here.
+const TAG_MAP = {
+  // 'JOB-001': 111111, // ← replace with real job number → Sprout tag ID pairs
 };
 
 // PROFILE_MAP: maps network names to Sprout customer_profile_ids.
@@ -148,7 +157,7 @@ async function uploadImageToSprout(imageBuffer, filename) {
 // ---------------------------------------------------------------------------
 // HELPER: Create a draft post in Sprout Social
 // ---------------------------------------------------------------------------
-async function createSproutPost(text, scheduledTime, mediaId, profileIds) {
+async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds) {
   const payload = {
     post_type: 'draft',
     content: { text },
@@ -164,6 +173,11 @@ async function createSproutPost(text, scheduledTime, mediaId, profileIds) {
   // Only include media_attachments if an image was uploaded
   if (mediaId) {
     payload.media_attachments = [{ id: mediaId }];
+  }
+
+  // Only include tag_ids if a matching tag was found
+  if (tagIds && tagIds.length > 0) {
+    payload.tag_ids = tagIds;
   }
 
   const res = await fetch(
@@ -288,7 +302,20 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    console.log(`STEP 5: postText="${postText.substring(0, 80)}...", scheduledTime=${scheduledTime}, assetUrl=${assetUrl ? '[present]' : '[none]'}, profileIds=${JSON.stringify(profileIds)}`);
+    // "Job Number" — rich_text field; look up matching Sprout tag ID
+    const jobNumberBlocks = props?.[NOTION_FIELDS.jobNumber]?.rich_text ?? [];
+    const jobNumber = jobNumberBlocks.map((b) => b.plain_text).join('').trim();
+    let tagIds = [];
+    if (jobNumber) {
+      const tagId = TAG_MAP[jobNumber];
+      if (tagId) {
+        tagIds = [tagId];
+      } else {
+        console.warn(`STEP 5: Job Number "${jobNumber}" not found in TAG_MAP — post will have no tag`);
+      }
+    }
+
+    console.log(`STEP 5: postText="${postText.substring(0, 80)}...", scheduledTime=${scheduledTime}, assetUrl=${assetUrl ? '[present]' : '[none]'}, profileIds=${JSON.stringify(profileIds)}, jobNumber="${jobNumber}", tagIds=${JSON.stringify(tagIds)}`);
 
     // STEP 6: Download and upload image (if present)
     let mediaId = null;
@@ -304,7 +331,7 @@ module.exports = async function handler(req, res) {
 
     // STEP 7 + 8: Create draft post in Sprout Social
     console.log('STEP 7/8: Creating Sprout draft post...');
-    const sproutResult = await createSproutPost(postText, scheduledTime, mediaId, profileIds);
+    const sproutResult = await createSproutPost(postText, scheduledTime, mediaId, profileIds, tagIds);
     console.log(`STEP 8: Sprout post created: ${JSON.stringify(sproutResult)}`);
 
     // STEP 9: Update Notion page status to "Sent to Sprout"
