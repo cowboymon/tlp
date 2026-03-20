@@ -159,15 +159,15 @@ async function uploadImageToSprout(imageBuffer, filename) {
 // ---------------------------------------------------------------------------
 async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds) {
   const payload = {
-    post_type: 'draft',
-    content: { text },
+    is_draft: true,
+    text,
     customer_profile_ids: profileIds,
     group_id: Number(SPROUT_GROUP_ID),
   };
 
-  // Only include scheduled_times if a valid future time was provided
+  // Only include scheduled_send_time if a valid future time was provided
   if (scheduledTime) {
-    payload.delivery = { scheduled_times: [scheduledTime] };
+    payload.scheduled_send_time = scheduledTime;
   }
 
   // Only include media_attachments if an image was uploaded
