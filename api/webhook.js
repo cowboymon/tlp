@@ -157,7 +157,14 @@ async function uploadImageToSprout(imageBuffer, filename) {
 // ---------------------------------------------------------------------------
 // HELPER: Create a draft post in Sprout Social
 // ---------------------------------------------------------------------------
-async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds) {
+function getSproutMediaType(filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'VIDEO';
+  if (ext === 'gif') return 'GIF';
+  return 'PHOTO';
+}
+
+async function createSproutPost(text, scheduledTime, mediaId, mediaFilename, profileIds, tagIds) {
   const payload = {
     is_draft: true,
     text,
@@ -172,7 +179,7 @@ async function createSproutPost(text, scheduledTime, mediaId, profileIds, tagIds
 
   // Only include media_attachments if an image was uploaded
   if (mediaId) {
-    payload.media = [{ media_id: mediaId, media_type: 'PHOTO' }];
+    payload.media = [{ media_id: mediaId, media_type: getSproutMediaType(mediaFilename) }];
   }
 
   // Only include tag_ids if a matching tag was found
@@ -331,7 +338,7 @@ module.exports = async function handler(req, res) {
 
     // STEP 7 + 8: Create draft post in Sprout Social
     console.log('STEP 7/8: Creating Sprout draft post...');
-    const sproutResult = await createSproutPost(postText, scheduledTime, mediaId, profileIds, tagIds);
+    const sproutResult = await createSproutPost(postText, scheduledTime, mediaId, assetFilename, profileIds, tagIds);
     console.log(`STEP 8: Sprout post created: ${JSON.stringify(sproutResult)}`);
 
     // STEP 9: Update Notion page status to "Sent to Sprout"
