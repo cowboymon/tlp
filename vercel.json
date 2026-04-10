@@ -2,6 +2,9 @@
   "functions": {
     "api/webhook.js": {
       "maxDuration": 30
+    },
+    "api/trello-webhook.js": {
+      "maxDuration": 30
     }
   },
   "routes": [
@@ -9,6 +12,11 @@
       "src": "/api/webhook",
       "dest": "/api/webhook.js",
       "methods": ["POST"]
+    },
+    {
+      "src": "/api/trello-webhook",
+      "dest": "/api/trello-webhook.js",
+      "methods": ["POST", "HEAD"]
     }
   ]
 }
